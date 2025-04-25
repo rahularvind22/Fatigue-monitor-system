@@ -1,0 +1,417 @@
+
+import os
+import cv2
+import torch
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
+from sklearn.metrics import accuracy_score, f1_score
+from tqdm import tqdm
+
+# Set seed for reproducibility
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+set_seed()
+
+
+
+
+
+
+# dataset class: give labels to the images.
+
+class YawnDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.transform = transform
+        self.data = []
+        self.labels = []
+        self.class_names = ["no_yawn", "yawn"]
+
+        for label, class_name in enumerate(self.class_names):
+            folder = os.path.join(root_dir, class_name)
+            for img_name in os.listdir(folder):
+                img_path = os.path.join(folder, img_name)
+                if img_name.lower().endswith((".jpg", ".png", ".jpeg")):
+                    self.data.append(img_path)
+                    self.labels.append(label)
+
+        # 🧾 Print dataset info
+        print(f"[INFO] Loaded {len(self.data)} images from {root_dir}")
+        print(f"        no_yawn: {self.labels.count(0)}")
+        print(f"        yawn   : {self.labels.count(1)}")
+
+    # length of the dataset
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        image = cv2.imread(self.data[idx])
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            image = self.transform(image)
+        label = self.labels[idx]
+        return image, torch.tensor(label, dtype=torch.long)
+
+
+# visulization of the datasets
+
+def show_sample(dataset):
+    image, label = dataset[0]
+    image = image.permute(1, 2, 0).numpy()  # Convert to HWC for matplotlib
+    image = (image * 0.5) + 0.5  # Denormalize [-1, 1] to [0, 1]
+    plt.imshow(image)
+    plt.title(f"Label: {'yawn' if label == 1 else 'no_yawn'}")
+    plt.axis('off')
+    plt.show()
+
+class CNNBinaryClassifier(nn.Module):
+    def __init__(self):
+        super(CNNBinaryClassifier, self).__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(3, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 2)
+        )
+
+    def forward(self, x):
+        x = self.net(x)
+        return self.classifier(x)
+
+
+def train_one_epoch(model, dataloader, criterion, optimizer, device):
+    model.train()
+    all_preds, all_labels = [], []
+    running_loss = 0.0
+
+    for images, labels in tqdm(dataloader, desc="Training", leave=False):
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        preds = torch.argmax(outputs, dim=1)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    return running_loss / len(dataloader), acc, f1
+
+def evaluate(model, dataloader, criterion, device):
+    model.eval()
+    all_preds, all_labels = [], []
+    val_loss = 0.0
+
+    with torch.no_grad():
+        for images, labels in tqdm(dataloader, desc="Evaluating", leave=False):
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            val_loss += loss.item()
+
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    return val_loss / len(dataloader), acc, f1
+
+#  Main Training Script
+def main():
+    train_dir = "/home/ubuntu/Final-Project-Group1/data/train"
+    test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((100, 100)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+    ])
+
+    train_ds = YawnDataset(train_dir, transform)
+    test_ds = YawnDataset(test_dir, transform)
+
+    # 🖼️ Visual check of a sample
+    show_sample(train_ds)
+
+    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=32)
+
+    model = CNNBinaryClassifier().to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+    best_f1 = 0.0
+    for epoch in range(10):
+        print(f"\nEpoch {epoch + 1}")
+        train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        val_loss, val_acc, val_f1 = evaluate(model, test_loader, criterion, device)
+
+        print(f"Train Loss: {train_loss:.4f} | Acc: {train_acc:.4f} | F1: {train_f1:.4f}")
+        print(f"Val   Loss: {val_loss:.4f} | Acc: {val_acc:.4f} | F1: {val_f1:.4f}")
+
+        if val_f1 > best_f1:
+            best_f1 = val_f1
+            torch.save(model.state_dict(), "best_yawn_model.pth")
+            print(" Best model saved!")
+
+if __name__ == "__main__":
+    main()
+
+"""
+import os
+import cv2
+import torch
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from tqdm import tqdm
+import seaborn as sns
+
+# ---------------------------- Seed & Device ----------------------------------
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+set_seed()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# defined the class
+
+class YawnDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.transform = transform
+        self.data = []
+        self.labels = []
+        self.class_names = ["no_yawn", "yawn"]
+
+        for label, class_name in enumerate(self.class_names):
+            folder = os.path.join(root_dir, class_name)
+            for img_name in os.listdir(folder):
+                if img_name.lower().endswith((".jpg", ".png", ".jpeg")):
+                    img_path = os.path.join(folder, img_name)
+                    self.data.append(img_path)
+                    self.labels.append(label)
+
+        print(f"[INFO] Loaded {len(self.data)} images from {root_dir}")
+        print(f"        no_yawn: {self.labels.count(0)}")
+        print(f"        yawn   : {self.labels.count(1)}")
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        image = cv2.imread(self.data[idx])
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if self.transform:
+            image = self.transform(image)
+        label = self.labels[idx]
+        return image, torch.tensor(label, dtype=torch.long)
+
+
+# define the per class yawn and non yawn :
+def show_sample(dataset):
+    image, label = dataset[0]
+    image = image.permute(1, 2, 0).numpy()
+    image = (image * 0.5) + 0.5
+    plt.imshow(image)
+    plt.title(f"Label: {'yawn' if label == 1 else 'no_yawn'}")
+    plt.axis('off')
+    plt.show()
+
+# custome cnn model :
+
+class CNNBinaryClassifier(nn.Module):
+    def __init__(self):
+        super(CNNBinaryClassifier, self).__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(3, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 2)
+        )
+
+    def forward(self, x):
+        x = self.net(x)
+        return self.classifier(x)
+
+# add label smoothing
+
+class LabelSmoothingCrossEntropy(nn.Module):
+    def __init__(self, smoothing=0.1):
+        super().__init__()
+        self.smoothing = smoothing
+        self.confidence = 1.0 - smoothing
+
+    def forward(self, x, target):
+        logprobs = nn.functional.log_softmax(x, dim=-1)
+        nll = -logprobs.gather(dim=-1, index=target.unsqueeze(1)).squeeze(1)
+        smooth_loss = -logprobs.mean(dim=-1)
+        loss = self.confidence * nll + self.smoothing * smooth_loss
+        return loss.mean()  # ✅ Make sure it's a scalar
+
+
+# eval train fuctnion here :
+def train_one_epoch(model, dataloader, criterion, optimizer):
+    model.train()
+    all_preds, all_labels = [], []
+    running_loss = 0.0
+
+    for images, labels in tqdm(dataloader, desc="Training", leave=False):
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        preds = torch.argmax(outputs, dim=1)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    return running_loss / len(dataloader), acc, f1
+
+def evaluate(model, dataloader, criterion):
+    model.eval()
+    all_preds, all_labels = [], []
+    val_loss = 0.0
+
+    with torch.no_grad():
+        for images, labels in tqdm(dataloader, desc="Evaluating", leave=False):
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            val_loss += loss.item()
+
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    acc = accuracy_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    return val_loss / len(dataloader), acc, f1, all_preds, all_labels
+
+
+
+# confucsion matrix for the cross check
+
+def plot_confusion_matrix(y_true, y_pred, labels=["no_yawn", "yawn"]):
+    cm = confusion_matrix(y_true, y_pred)
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels)
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.title("Confusion Matrix")
+    plt.show()
+
+# ------------------------ Main ------------------------------------------------
+def main():
+    # define the dataset location .
+    train_dir = "/home/ubuntu/Final-Project-Group1/data/train"
+    test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
+
+    # agumenttation of the datset .
+    transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((100, 100)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+    ])
+
+    train_ds = YawnDataset(train_dir, transform)
+    test_ds = YawnDataset(test_dir, transform)
+    show_sample(train_ds)
+
+    train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=32)
+
+    model = CNNBinaryClassifier().to(device)
+    criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+
+    best_f1 = 0.0
+    for epoch in range(20):
+        print(f"\nEpoch {epoch + 1}")
+        train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer)
+        val_loss, val_acc, val_f1, val_preds, val_labels = evaluate(model, test_loader, criterion)
+
+        print(f"Train Loss: {train_loss:.4f} | Acc: {train_acc:.4f} | F1: {train_f1:.4f}")
+        print(f"Val   Loss: {val_loss:.4f} | Acc: {val_acc:.4f} | F1: {val_f1:.4f}")
+
+        scheduler.step()
+
+        if val_f1 > best_f1:
+            best_f1 = val_f1
+            torch.save(model.state_dict(), "best_yawn_model.pth")
+            print("  Best model saved!")
+
+    # 🔍 Final Confusion Matrix
+    print("\n[INFO] Plotting confusion matrix for best model...")
+    plot_confusion_matrix(val_labels, val_preds)
+
+if __name__ == "__main__":
+    main()
+
+
+"""
