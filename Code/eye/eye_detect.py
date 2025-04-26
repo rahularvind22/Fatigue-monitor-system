@@ -82,5 +82,42 @@ if pretrained:
 else:
     print("Using custom EyeCNN...")
     model = EyeCNN().to(device)
+# ------------------ Training Setup ------------------ #
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, verbose=True)
+
+# ------------------ Training Loop ------------------ #
+for epoch in range(EPOCHS):
+    model.train()
+    total_loss = 0
+    for images, labels in train_loader:
+        images, labels = images.to(device), labels.to(device)
+
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
+
+# ------------------ Evaluation ------------------ #
+model.eval()
+all_preds = []
+all_labels = []
+
+with torch.no_grad():
+    for images, labels in test_loader:
+        images, labels = images.to(device), labels.to(device)
+        outputs = model(images)
+        preds = torch.argmax(outputs, dim=1)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+print("\nTest Classification Report:")
+print(classification_report(all_labels, all_preds, target_names=train_dataset.classes))
 
 
