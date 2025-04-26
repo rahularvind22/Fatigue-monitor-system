@@ -11,3 +11,15 @@ from torchvision.datasets import ImageFolder
 from torchvision import transforms, models
 from tqdm import tqdm
 
+# ------------------ Config ------------------ #
+IMAGE_SIZE = 100  # Use 224 if using pretrained=True
+BATCH_SIZE = 30
+EPOCHS = 10
+pretrained = False  # ✅ Change this to True for ResNet18
+keep_classes = ['Closed', 'Open']
+
+# ------------------ Transform ------------------ #
+transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.ToTensor(),
+])
