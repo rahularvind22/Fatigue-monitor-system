@@ -199,7 +199,7 @@ def main():
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     best_f1 = 0.0
-    for epoch in range(20):
+    for epoch in range(30):
         print(f"\nEpoch {epoch + 1}")
         train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer)
         val_loss, val_acc, val_f1, val_preds, val_labels = evaluate(model, test_loader, criterion)
