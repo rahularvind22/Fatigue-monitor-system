@@ -14,13 +14,16 @@ from tqdm import tqdm
 # ------------------ Config ------------------ #
 IMAGE_SIZE = 100
 BATCH_SIZE = 30
-EPOCHS = 10
+EPOCHS = 30
 pretrained = False
 keep_classes = ['Closed', 'Open']
 
-# ------------------ Transform ------------------ #
+# ------------------ Data Augmentation Transform ------------------ #
 transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
     transforms.ToTensor(),
 ])
 
@@ -37,7 +40,10 @@ train_dir = "/home/ubuntu/Final-Project-Group1/data/test"
 test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
 
 train_dataset = FilteredImageFolder(root=train_dir, transform=transform)
-test_dataset = FilteredImageFolder(root=test_dir, transform=transform)
+test_dataset = FilteredImageFolder(root=test_dir, transform=transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.ToTensor(),
+]))
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
@@ -50,22 +56,29 @@ class EyeCNN(nn.Module):
     def __init__(self):
         super(EyeCNN, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2),
+            nn.Dropout(0.1),
 
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
+            nn.Dropout(0.17),
 
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
         )
-        self.fc = nn.Linear(128, OUTPUTS_a)
+        self.fc = nn.Linear(256, OUTPUTS_a)
 
     def forward(self, x):
         x = self.model(x)
@@ -80,10 +93,6 @@ if pretrained:
     model = models.resnet18(pretrained=True)
     model.fc = nn.Linear(model.fc.in_features, OUTPUTS_a)
     IMAGE_SIZE = 224
-    transform = transforms.Compose([
-        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-        transforms.ToTensor(),
-    ])
 else:
     print("Using custom EyeCNN...")
     model = EyeCNN()
@@ -91,9 +100,10 @@ else:
 model = model.to(device)
 
 # ------------------ Training Setup ------------------ #
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, verbose=True)
+class_weights = torch.tensor([1.2, 0.8]).to(device)
+criterion = nn.CrossEntropyLoss(weight=class_weights)
+optimizer = optim.Adam(model.parameters(), lr=0.0005)
+scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=2)
 
 # ------------------ Training Loop with Best Model Saving ------------------ #
 best_f1 = 0.0
