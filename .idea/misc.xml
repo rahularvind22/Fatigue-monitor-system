@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.12.3 (sftp://ubuntu@3.81.135.51:22/usr/bin/python3)" project-jdk-type="Python SDK" />
+  <component name="Black">
+    <option name="sdkName" value="Remote Python 3.12.3 (sftp://ubuntu@3.89.205.176:22/usr/bin/python3)" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.12.3 (sftp://ubuntu@3.90.231.32:22/usr/bin/python3)" project-jdk-type="Python SDK" />
 </project>

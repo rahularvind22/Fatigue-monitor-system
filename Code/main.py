@@ -15,7 +15,7 @@ from tqdm import tqdm
 IMAGE_SIZE = 100  # Use 224 if using pretrained=True
 BATCH_SIZE = 30
 EPOCHS = 10
-pretrained = False  # ✅ Change this to True for ResNet18
+pretrained = False  # Change this to True for ResNet18
 keep_classes = ['Closed', 'Open']
 
 # ------------------ Transform ------------------ #
@@ -33,8 +33,8 @@ class FilteredImageFolder(ImageFolder):
         return classes, class_to_idx
 
 # ------------------ Data Loaders ------------------ #
-train_dir = "/home/ubuntu/deeplearning_project/data/train"
-test_dir = "/home/ubuntu/deeplearning_project/data/test"
+train_dir = "/home/ubuntu/Final-Project-Group1/data/train"
+test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
 
 train_dataset = FilteredImageFolder(root=train_dir, transform=transform)
 test_dataset = FilteredImageFolder(root=test_dir, transform=transform)
@@ -77,13 +77,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 if pretrained:
     print("Using pretrained ResNet18...")
-    IMAGE_SIZE = 224  # Update size for ResNet
-    transform = transforms.Compose([
-        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-        transforms.ToTensor(),
-    ])
     model = models.resnet18(pretrained=True)
     model.fc = nn.Linear(model.fc.in_features, OUTPUTS_a)
+    model = model.to(device)
+    IMAGE_SIZE = 224  # Update size for ResNet
 else:
     print("Using custom EyeCNN...")
     model = EyeCNN().to(device)
@@ -110,11 +107,6 @@ for epoch in range(EPOCHS):
     avg_loss = total_loss / len(train_loader)
     print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
 
-# Save model
-torch.save(model.state_dict(), "eye_model.pt")
-print("✅ Model saved as eye_model.pt")
-
-
 # ------------------ Evaluation ------------------ #
 model.eval()
 all_preds = []
@@ -130,3 +122,14 @@ with torch.no_grad():
 
 print("\nTest Classification Report:")
 print(classification_report(all_labels, all_preds, target_names=train_dataset.classes))
+
+# ------------------ Save the Model ------------------ #
+save_path = "eye_state_model.pth"
+torch.save(model.state_dict(), save_path)
+print(f"\n✅ Model saved to {save_path}")
+
+# ------------------ (Optional) Load Later ------------------ #
+# model = EyeCNN().to(device)  # Make sure model architecture matches
+# model.load_state_dict(torch.load("eye_state_model.pth", map_location=device))
+# model.eval()
+# print("Model loaded and ready for inference!")
