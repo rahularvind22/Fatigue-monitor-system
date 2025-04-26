@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="ubuntu@3.90.231.32:22 key" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="ubuntu@52.90.240.75:22 key" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
-      <paths name="ubuntu@3.90.231.32:22 key">
+      <paths name="ubuntu@52.90.240.75:22 key">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/ubuntu/Final-Project-Group1" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/ubuntu/Final-Project-Group1/Code/eye" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
