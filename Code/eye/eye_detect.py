@@ -1,10 +1,10 @@
 import os
 import cv2
 import numpy as np
-from sklearn.metrics import classification_report
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from sklearn.metrics import classification_report, f1_score
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision.datasets import ImageFolder
@@ -12,10 +12,10 @@ from torchvision import transforms, models
 from tqdm import tqdm
 
 # ------------------ Config ------------------ #
-IMAGE_SIZE = 100  # Use 224 if using pretrained=True
+IMAGE_SIZE = 100
 BATCH_SIZE = 30
 EPOCHS = 10
-pretrained = False  # ✅ Change this to True for ResNet18
+pretrained = False
 keep_classes = ['Closed', 'Open']
 
 # ------------------ Transform ------------------ #
@@ -23,6 +23,7 @@ transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.ToTensor(),
 ])
+
 # ------------------ Custom ImageFolder to Filter Classes ------------------ #
 class FilteredImageFolder(ImageFolder):
     def find_classes(self, directory):
@@ -32,8 +33,8 @@ class FilteredImageFolder(ImageFolder):
         return classes, class_to_idx
 
 # ------------------ Data Loaders ------------------ #
-train_dir = "/home/ubuntu/deeplearning_project/data/train"
-test_dir = "/home/ubuntu/deeplearning_project/data/test"
+train_dir = "/home/ubuntu/Final-Project-Group1/data/test"
+test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
 
 train_dataset = FilteredImageFolder(root=train_dir, transform=transform)
 test_dataset = FilteredImageFolder(root=test_dir, transform=transform)
@@ -43,10 +44,11 @@ test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 OUTPUTS_a = len(train_dataset.classes)
 print("Classes used:", train_dataset.classes)
+
 # ------------------ Model Definition ------------------ #
 class EyeCNN(nn.Module):
-    def _init_(self):
-        super(EyeCNN, self)._init_()
+    def __init__(self):
+        super(EyeCNN, self).__init__()
         self.model = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
@@ -77,17 +79,26 @@ if pretrained:
     print("Using pretrained ResNet18...")
     model = models.resnet18(pretrained=True)
     model.fc = nn.Linear(model.fc.in_features, OUTPUTS_a)
-    model = model.to(device)
-    IMAGE_SIZE = 224  # Update size for ResNet
+    IMAGE_SIZE = 224
+    transform = transforms.Compose([
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.ToTensor(),
+    ])
 else:
     print("Using custom EyeCNN...")
-    model = EyeCNN().to(device)
+    model = EyeCNN()
+
+model = model.to(device)
+
 # ------------------ Training Setup ------------------ #
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, verbose=True)
 
-# ------------------ Training Loop ------------------ #
+# ------------------ Training Loop with Best Model Saving ------------------ #
+best_f1 = 0.0
+save_path = "eye_model_best.pt"
+
 for epoch in range(EPOCHS):
     model.train()
     total_loss = 0
@@ -104,8 +115,33 @@ for epoch in range(EPOCHS):
     avg_loss = total_loss / len(train_loader)
     print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
 
-# ------------------ Evaluation ------------------ #
+    # Evaluation after epoch
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    f1_macro = f1_score(all_labels, all_preds, average='macro')
+    print(f"Epoch {epoch+1}: Test F1 Macro = {f1_macro:.4f}")
+
+    # Save best model
+    if f1_macro > best_f1:
+        best_f1 = f1_macro
+        torch.save(model.state_dict(), save_path)
+        print(f"Saved Best Model at epoch {epoch+1} with F1: {f1_macro:.4f}")
+
+# ------------------ Final Evaluation ------------------ #
+print("\nFinal Test Classification Report (Best Model Loaded):")
+model.load_state_dict(torch.load(save_path))
 model.eval()
+
 all_preds = []
 all_labels = []
 
@@ -117,7 +153,4 @@ with torch.no_grad():
         all_preds.extend(preds.cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
 
-print("\nTest Classification Report:")
 print(classification_report(all_labels, all_preds, target_names=train_dataset.classes))
-
-
