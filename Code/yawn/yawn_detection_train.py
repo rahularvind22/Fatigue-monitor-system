@@ -1,4 +1,3 @@
-
 import os
 import cv2
 import torch
@@ -43,8 +42,6 @@ class ResNet18BinaryClassifier(nn.Module):
 
 
 
-
-
 class YawnDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.transform = transform
@@ -85,41 +82,6 @@ def show_sample(dataset):
     plt.title(f"Label: {'yawn' if label == 1 else 'no_yawn'}")
     plt.axis('off')
     plt.show()
-
-# custome cnn model :
-"""
-class CNNBinaryClassifier(nn.Module):
-    def __init__(self):
-        super(CNNBinaryClassifier, self).__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(3, 32, 3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            nn.Conv2d(32, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-        )
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(64, 2)
-        )
-
-    def forward(self, x):
-        x = self.net(x)
-        return self.classifier(x)
-"""
-
 
 class CNNBinaryClassifier(nn.Module):
     def __init__(self):
@@ -216,7 +178,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
         nll = -logprobs.gather(dim=-1, index=target.unsqueeze(1)).squeeze(1)
         smooth_loss = -logprobs.mean(dim=-1)
         loss = self.confidence * nll + self.smoothing * smooth_loss
-        return loss.mean()  # ✅ Make sure it's a scalar
+        return loss.mean()
 
 
 
@@ -263,8 +225,6 @@ def evaluate(model, dataloader, criterion):
     acc = accuracy_score(all_labels, all_preds)
     f1 = f1_score(all_labels, all_preds)
     return val_loss / len(dataloader), acc, f1, all_preds, all_labels
-
-
 
 # confucsion matrix for the cross check
 
@@ -323,17 +283,6 @@ def main():
 
     print("\n[INFO] Plotting confusion matrix for best model...")
     plot_confusion_matrix(val_labels, val_preds)
-
-
-
-
-
-
-
-# ------------------------ Main ------------------------------------------------
-
-
-
 
 
 if __name__ == "__main__":

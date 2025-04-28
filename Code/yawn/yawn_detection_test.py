@@ -10,8 +10,6 @@ import seaborn as sns
 from yawn_detection_train import CNNBinaryClassifier  # make sure this is in same dir or import correctly
 from yawn_detection_train import ResNet18BinaryClassifier
 
-# set the class of the dataset :
-
 class YawnTestDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.transform = transform
@@ -97,10 +95,7 @@ def main():
     print("\n  Accuracy Report : ")
     print(f"\n  Final Test Accuracy: {acc:.4f}")
     print(f" Final Test F1 Score: {f1:.4f}")
-
-
     plot_confusion_matrix(all_labels, all_preds)
-
 
 if __name__ == "__main__":
     main()

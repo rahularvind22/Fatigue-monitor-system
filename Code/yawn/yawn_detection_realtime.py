@@ -4,15 +4,13 @@ import numpy as np
 from torchvision import transforms
 from yawn_detection_train import ResNet18BinaryClassifier  # Make sure this import matches your train file
 
-# Set device
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the trained model
 model = ResNet18BinaryClassifier().to(device)
 model.load_state_dict(torch.load("best_model.pth", map_location=device))
 model.eval()
 
-# Define image transformations (must match train/test)
 transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((224, 224)),
@@ -61,6 +59,5 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release everything
 cap.release()
 cv2.destroyAllWindows()
