@@ -3,6 +3,7 @@ import cv2
 import torch
 import torch.nn as nn
 import numpy as np
+from playsound import playsound
 import time
 from torchvision import transforms
 
@@ -94,7 +95,7 @@ def check_drowsiness_alert(predictions, frame, closed_start_time, alert_triggere
             closed_start_time = time.time()
         else:
             elapsed = time.time() - closed_start_time
-            if elapsed >= 1.1:
+            if elapsed >= 0.9:
                 alert_triggered = True
 
     else:
@@ -104,6 +105,7 @@ def check_drowsiness_alert(predictions, frame, closed_start_time, alert_triggere
 
     # Always display alert if triggered
     if alert_triggered:
+        os.system('say "Wake Up!!"')  # Mac built-in voice alert
         cv2.putText(frame, "DROWSINESS ALERT!", (50, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
