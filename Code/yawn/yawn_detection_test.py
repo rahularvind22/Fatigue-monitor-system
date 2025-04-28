@@ -8,8 +8,7 @@ from sklearn.metrics import classification_report, accuracy_score, f1_score, con
 import matplotlib.pyplot as plt
 import seaborn as sns
 from yawn_detection_train import CNNBinaryClassifier  # make sure this is in same dir or import correctly
-
-# set the class of the dataset :
+from yawn_detection_train import ResNet18BinaryClassifier
 
 class YawnTestDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -36,32 +35,44 @@ class YawnTestDataset(Dataset):
         label = self.labels[idx]
         return image, torch.tensor(label, dtype=torch.long)
 
-# same confucion matrix to check yawn and non yawn
-def plot_confusion_matrix(y_true, y_pred, labels=["no_yawn", "yawn"]):
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+
+
+def plot_confusion_matrix(y_true, y_pred, class_names=["no_yawn", "yawn"]):
     cm = confusion_matrix(y_true, y_pred)
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=labels, yticklabels=labels)
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.title("Confusion Matrix")
+
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix')
     plt.show()
+
 
 # test the best model for the training
 def main():
     test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
-    model_path = "best_yawn_model.pth"
+    model_path = "best_model.pth"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize((100, 100)),
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
     ])
+
 
     test_dataset = YawnTestDataset(test_dir, transform)
     test_loader = DataLoader(test_dataset, batch_size=32)
 
-    model = CNNBinaryClassifier().to(device)
+    #model = CNNBinaryClassifier().to(device)
+    model= ResNet18BinaryClassifier().to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
@@ -84,8 +95,6 @@ def main():
     print("\n  Accuracy Report : ")
     print(f"\n  Final Test Accuracy: {acc:.4f}")
     print(f" Final Test F1 Score: {f1:.4f}")
-
-
     plot_confusion_matrix(all_labels, all_preds)
 
 if __name__ == "__main__":

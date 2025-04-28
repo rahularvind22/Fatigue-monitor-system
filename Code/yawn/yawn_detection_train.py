@@ -1,4 +1,3 @@
-
 import os
 import cv2
 import torch
@@ -24,6 +23,24 @@ set_seed()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # defined the class
+
+from torchvision import models
+
+class ResNet18BinaryClassifier(nn.Module):
+    def __init__(self):
+        super(ResNet18BinaryClassifier, self).__init__()
+        self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)  # Pretrained on ImageNet
+        self.model.fc = nn.Sequential(
+            nn.Linear(self.model.fc.in_features, 64),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(64, 2)  # Output 2 classes: no_yawn, yawn
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
 
 class YawnDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -66,8 +83,6 @@ def show_sample(dataset):
     plt.axis('off')
     plt.show()
 
-# custome cnn model :
-
 class CNNBinaryClassifier(nn.Module):
     def __init__(self):
         super(CNNBinaryClassifier, self).__init__()
@@ -75,29 +90,80 @@ class CNNBinaryClassifier(nn.Module):
             nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(32, 32, 3, padding=1),  # Added one more Conv
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 128 -> 64
 
             nn.Conv2d(32, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2),
+            nn.Conv2d(64, 64, 3, padding=1),  # Added one more Conv
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 64 -> 32
 
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Conv2d(128, 128, 3, padding=1),  # Added one more Conv
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),  # 32 -> 1
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.4),
             nn.Linear(64, 2)
         )
 
     def forward(self, x):
         x = self.net(x)
         return self.classifier(x)
+
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.ce = nn.CrossEntropyLoss()
+
+    def forward(self, inputs, targets):
+        logp = self.ce(inputs, targets)
+        p = torch.exp(-logp)
+        loss = self.alpha * (1 - p) ** self.gamma * logp
+        return loss
+
+
+
+
+class EarlyStopping:
+    def __init__(self, patience=5):
+        self.patience = patience
+        self.counter = 0
+        self.best_f1 = None
+        self.early_stop = False
+
+    def __call__(self, f1, model, path="best_model.pth"):
+        if self.best_f1 is None:
+            self.best_f1 = f1
+            self.save_checkpoint(model, path)
+        elif f1 < self.best_f1:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_f1 = f1
+            self.save_checkpoint(model, path)
+            self.counter = 0
+
+    def save_checkpoint(self, model, path):
+        torch.save(model.state_dict(), path)
+
 
 # add label smoothing
 
@@ -112,7 +178,8 @@ class LabelSmoothingCrossEntropy(nn.Module):
         nll = -logprobs.gather(dim=-1, index=target.unsqueeze(1)).squeeze(1)
         smooth_loss = -logprobs.mean(dim=-1)
         loss = self.confidence * nll + self.smoothing * smooth_loss
-        return loss.mean()  # ✅ Make sure it's a scalar
+        return loss.mean()
+
 
 
 # eval train fuctnion here :
@@ -159,8 +226,6 @@ def evaluate(model, dataloader, criterion):
     f1 = f1_score(all_labels, all_preds)
     return val_loss / len(dataloader), acc, f1, all_preds, all_labels
 
-
-
 # confucsion matrix for the cross check
 
 def plot_confusion_matrix(y_true, y_pred, labels=["no_yawn", "yawn"]):
@@ -171,19 +236,19 @@ def plot_confusion_matrix(y_true, y_pred, labels=["no_yawn", "yawn"]):
     plt.title("Confusion Matrix")
     plt.show()
 
-# ------------------------ Main ------------------------------------------------
+
 def main():
-    # define the dataset location .
     train_dir = "/home/ubuntu/Final-Project-Group1/data/train"
     test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
 
-    # agumenttation of the datset .
     transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize((100, 100)),
+        transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5]*3, std=[0.5]*3)
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
     ])
 
     train_ds = YawnDataset(train_dir, transform)
@@ -193,13 +258,14 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=32)
 
-    model = CNNBinaryClassifier().to(device)
+    model = ResNet18BinaryClassifier().to(device)  # ✅ Correct model now
     criterion = LabelSmoothingCrossEntropy(smoothing=0.1)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
+    early_stopper = EarlyStopping(patience=5)  # ✅ Added early stopping
 
     best_f1 = 0.0
-    for epoch in range(30):
+    for epoch in range(40):  # Allow up to 40 epochs, but early stopping will control
         print(f"\nEpoch {epoch + 1}")
         train_loss, train_acc, train_f1 = train_one_epoch(model, train_loader, criterion, optimizer)
         val_loss, val_acc, val_f1, val_preds, val_labels = evaluate(model, test_loader, criterion)
@@ -209,14 +275,15 @@ def main():
 
         scheduler.step()
 
-        if val_f1 > best_f1:
-            best_f1 = val_f1
-            torch.save(model.state_dict(), "best_yawn_model.pth")
-            print("  Best model saved!")
+        early_stopper(val_f1, model)
 
-    # 🔍 Final Confusion Matrix
+        if early_stopper.early_stop:
+            print("Early stopping triggered. Training stopped.")
+            break
+
     print("\n[INFO] Plotting confusion matrix for best model...")
     plot_confusion_matrix(val_labels, val_preds)
+
 
 if __name__ == "__main__":
     main()
