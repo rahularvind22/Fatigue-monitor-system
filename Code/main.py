@@ -57,3 +57,49 @@ transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.ToTensor()
 ])
+
+def predict_eye(img):
+    img = transform(img)
+    img = img.unsqueeze(0).to(device)
+    with torch.no_grad():
+        outputs = model(img)
+        _, preds = torch.max(outputs, 1)
+    return CLASSES[preds.item()]
+
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("Error: Could not open webcam.")
+    exit()
+
+# Load Haar Cascade to detect eyes
+eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+
+    for (x, y, w, h) in eyes:
+        eye_img = frame_rgb[y:y+h, x:x+w]
+        if eye_img.size == 0:
+            continue
+
+        pred = predict_eye(eye_img)
+
+        color = (0, 255, 0) if pred == 'Open' else (0, 0, 255)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(frame, pred, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
+    cv2.imshow('Eye State Detection', frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
