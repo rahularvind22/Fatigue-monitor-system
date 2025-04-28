@@ -1,135 +1,151 @@
 import os
 import cv2
-import numpy as np
-from sklearn.metrics import classification_report
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision.datasets import ImageFolder
-from torchvision import transforms, models
-from tqdm import tqdm
+import numpy as np
+from playsound import playsound
+import time
+from torchvision import transforms
 
-# ------------------ Config ------------------ #
-IMAGE_SIZE = 100  # Use 224 if using pretrained=True
-BATCH_SIZE = 30
-EPOCHS = 10
-pretrained = False  # Change this to True for ResNet18
-keep_classes = ['Closed', 'Open']
+IMAGE_SIZE = 100
+CLASSES = ['Closed', 'Open']
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# ------------------ Transform ------------------ #
-transform = transforms.Compose([
-    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-    transforms.ToTensor(),
-])
-
-# ------------------ Custom ImageFolder to Filter Classes ------------------ #
-class FilteredImageFolder(ImageFolder):
-    def find_classes(self, directory):
-        classes = [d.name for d in os.scandir(directory) if d.is_dir() and d.name in keep_classes]
-        classes.sort()
-        class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
-        return classes, class_to_idx
-
-# ------------------ Data Loaders ------------------ #
-train_dir = "/home/ubuntu/Final-Project-Group1/data/train"
-test_dir = "/home/ubuntu/Final-Project-Group1/data/test"
-
-train_dataset = FilteredImageFolder(root=train_dir, transform=transform)
-test_dataset = FilteredImageFolder(root=test_dir, transform=transform)
-
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-
-OUTPUTS_a = len(train_dataset.classes)
-print("Classes used:", train_dataset.classes)
-
-# ------------------ Model Definition ------------------ #
 class EyeCNN(nn.Module):
     def __init__(self):
         super(EyeCNN, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2),
+            nn.Dropout(0.1),
 
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2),
+            nn.Dropout(0.17),
 
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
         )
-        self.fc = nn.Linear(128, OUTPUTS_a)
+        self.fc = nn.Linear(256, len(CLASSES))
 
     def forward(self, x):
         x = self.model(x)
         x = x.view(x.size(0), -1)
         return self.fc(x)
 
-# ------------------ Instantiate Model ------------------ #
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+def load_model(model_path):
+    model = EyeCNN()
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    model.to(DEVICE)
+    model.eval()
+    return model
 
-if pretrained:
-    print("Using pretrained ResNet18...")
-    model = models.resnet18(pretrained=True)
-    model.fc = nn.Linear(model.fc.in_features, OUTPUTS_a)
-    model = model.to(device)
-    IMAGE_SIZE = 224  # Update size for ResNet
-else:
-    print("Using custom EyeCNN...")
-    model = EyeCNN().to(device)
+def get_transform():
+    return transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+        transforms.ToTensor()
+    ])
 
-# ------------------ Training Setup ------------------ #
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=1, verbose=True)
+def predict_eye(model, transform, img):
+    img = transform(img)
+    img = img.unsqueeze(0).to(DEVICE)
+    with torch.no_grad():
+        outputs = model(img)
+        _, preds = torch.max(outputs, 1)
+    return CLASSES[preds.item()]
 
-# ------------------ Training Loop ------------------ #
-for epoch in range(EPOCHS):
-    model.train()
-    total_loss = 0
-    for images, labels in train_loader:
-        images, labels = images.to(device), labels.to(device)
+def draw_predictions(frame, eyes, model, transform):
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    h_img, w_img, _ = frame_rgb.shape
+    predictions = []
+    for (x, y, w, h) in eyes:
+        x1 = max(0, x - 20)
+        y1 = max(0, y - 10)
+        x2 = min(w_img, x + w + 20)
+        y2 = min(h_img, y + h + 10)
 
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
+        eye_img = frame_rgb[y1:y2, x1:x2]
+        if eye_img.size == 0:
+            continue
 
-    avg_loss = total_loss / len(train_loader)
-    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {avg_loss:.4f}")
+        pred = predict_eye(model, transform, eye_img)
+        predictions.append(pred)
 
-# ------------------ Evaluation ------------------ #
-model.eval()
-all_preds = []
-all_labels = []
+        color = (0, 255, 0) if pred == 'Open' else (0, 0, 255)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(frame, pred, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-with torch.no_grad():
-    for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device)
-        outputs = model(images)
-        preds = torch.argmax(outputs, dim=1)
-        all_preds.extend(preds.cpu().numpy())
-        all_labels.extend(labels.cpu().numpy())
+    return predictions
 
-print("\nTest Classification Report:")
-print(classification_report(all_labels, all_preds, target_names=train_dataset.classes))
+def check_drowsiness_alert(predictions, frame, closed_start_time, alert_triggered):
+    if len(predictions) >= 2 and predictions.count('Closed') >= 2:
+        if closed_start_time is None:
+            closed_start_time = time.time()
+        else:
+            elapsed = time.time() - closed_start_time
+            if elapsed >= 0.9:
+                alert_triggered = True
 
-# ------------------ Save the Model ------------------ #
-save_path = "eye_state_model.pth"
-torch.save(model.state_dict(), save_path)
-print(f"\n✅ Model saved to {save_path}")
+    else:
+        # Eyes are open, reset everything
+        closed_start_time = None
+        alert_triggered = False
 
-# ------------------ (Optional) Load Later ------------------ #
-# model = EyeCNN().to(device)  # Make sure model architecture matches
-# model.load_state_dict(torch.load("eye_state_model.pth", map_location=device))
-# model.eval()
-# print("Model loaded and ready for inference!")
+    # Always display alert if triggered
+    if alert_triggered:
+        os.system('say "Wake Up!!"')  # Mac built-in voice alert
+        cv2.putText(frame, "DROWSINESS ALERT!", (50, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+
+    return closed_start_time, alert_triggered
+
+
+def main():
+    project_dir = os.getcwd()
+    model_path = os.path.join(project_dir, 'eye', 'eye_model_best.pt')
+
+    model = load_model(model_path)
+    transform = get_transform()
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        return
+
+    eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+
+    closed_start_time = None
+    alert_triggered = False
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=8)
+
+        predictions = draw_predictions(frame, eyes, model, transform)  # <--- save predictions
+        closed_start_time, alert_triggered = check_drowsiness_alert(predictions, frame, closed_start_time,
+                                                                    alert_triggered)
+
+        cv2.imshow('Eye State Detection', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
