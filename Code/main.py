@@ -66,14 +66,25 @@ def predict_eye(model, transform, img):
 
 def draw_predictions(frame, eyes, model, transform):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    h_img, w_img, _ = frame_rgb.shape
+    padding = 10
+
     for (x, y, w, h) in eyes:
-        eye_img = frame_rgb[y:y+h, x:x+w]
+        x1 = max(0, x - 20)
+        y1 = max(0, y - 10)
+        x2 = min(w_img, x + w + 20)
+        y2 = min(h_img, y + h + 10)
+
+        eye_img = frame_rgb[y1:y2, x1:x2]
         if eye_img.size == 0:
             continue
+
         pred = predict_eye(model, transform, eye_img)
+
         color = (0, 255, 0) if pred == 'Open' else (0, 0, 255)
-        cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-        cv2.putText(frame, pred, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(frame, pred, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
 
 def main():
     # Paths
@@ -97,7 +108,7 @@ def main():
         if not ret:
             break
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        eyes = eye_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=25)
         draw_predictions(frame, eyes, model, transform)
         cv2.imshow('Eye State Detection', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
