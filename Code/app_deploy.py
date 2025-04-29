@@ -16,7 +16,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # ----------------- Model -----------------
 class EyeCNN(nn.Module):
-    def __init__(self):
+    def __init__(self, outputs):
         super(EyeCNN, self).__init__()
         self.model = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
@@ -41,7 +41,7 @@ class EyeCNN(nn.Module):
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
         )
-        self.fc = nn.Linear(256, len(CLASSES))
+        self.fc = nn.Linear(256, outputs)
 
     def forward(self, x):
         x = self.model(x)
@@ -51,7 +51,7 @@ class EyeCNN(nn.Module):
 # ----------------- Helper Functions -----------------
 @st.cache_resource
 def load_model(model_path):
-    model = EyeCNN()
+    model = EyeCNN(outputs=2)  # Must match training time (outputs=2)
     model.load_state_dict(torch.load(model_path, map_location=DEVICE))
     model.to(DEVICE)
     model.eval()
@@ -83,12 +83,13 @@ def beep_sound():
         os.system('say "Alert!! wake up"')
     elif platform.system() == "Windows":  # Windows
         import winsound
-        winsound.Beep(1000, 300)  # 1000 Hz for 300 ms
+        winsound.Beep(1000, 300)
     else:  # Linux
         os.system('spd-say "wake up"')
 
 # ----------------- Streamlit App -----------------
 def main():
+    st.set_page_config(page_title="Driver Drowsiness Detection", page_icon="🚗", layout="centered")
     st.title("🚗 Driver Drowsiness Detection")
     st.markdown("Detects if eyes are **Open** or **Closed** and plays a **continuous beep** when drowsiness is detected.")
     st.markdown("---")
@@ -107,7 +108,7 @@ def main():
 
     if start_detection:
         cap = cv2.VideoCapture(0)
-        cap.set(cv2.CAP_PROP_FPS, 60)  # Target 40 FPS
+        cap.set(cv2.CAP_PROP_FPS, 40)  # Target 40 FPS
         eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
 
         closed_start_time = None
