@@ -14,11 +14,8 @@ from tqdm import tqdm
 
 # ------------------ Config ------------------ #
 OR_PATH = os.getcwd()
-os.chdir("..")
-PATH = os.getcwd()
+PATH = os.path.abspath(os.path.join(OR_PATH, "..", ".."))  # Go two levels up
 DATA_DIR = os.path.join(PATH, 'data')
-os.chdir(OR_PATH)
-
 IMAGE_SIZE = 100
 BATCH_SIZE = 30
 EPOCHS = 30
