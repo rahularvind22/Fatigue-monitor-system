@@ -13,7 +13,7 @@ We use **custom CNN models** for both tasks with clean training & testing pipeli
 
 ## 📂 Project Structure
 
-\```
+```bash
 Final-Project-Group1/
 ├── data/
 │   ├── eye/
@@ -36,7 +36,7 @@ Final-Project-Group1/
 ├── best_yawn_model.pth
 ├── requirements.txt
 └── README.md
-\```
+```
 
 ---
 
@@ -44,29 +44,29 @@ Final-Project-Group1/
 
 ### 1️⃣ Clone the GitHub Repository
 
-\```bash
+```bash
 git clone https://github.com/AswinBalajiTR/Final-Project-Group1
 cd Final-Project-Group1
-\```
+```
 
 ---
 
 ### 2️⃣ Install Python Dependencies
 
-\```bash
+```bash
 pip install -r requirements.txt
-\```
+```
 
 Example `requirements.txt`:
 
-\```
+```text
 torch
 torchvision
 opencv-python
 numpy
 tqdm
 scikit-learn
-\```
+```
 
 ---
 
@@ -74,41 +74,37 @@ scikit-learn
 
 #### 👁️ Eye Dataset
 
-Google Drive Link:
+**Google Drive Link:**
 
-```
 https://drive.google.com/file/d/1XXXXXXX_EYE_DATASET_ID/view?usp=drive_link
-```
 
 Download using:
 
-\```bash
+```bash
 pip install gdown
 gdown https://drive.google.com/uc?id=1XXXXXXX_EYE_DATASET_ID -O eye_dataset.zip
-\```
+```
 
 #### 😮 Yawn Dataset
 
-Google Drive Link:
+**Google Drive Link:**
 
-```
 https://drive.google.com/file/d/1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA/view?usp=drive_link
-```
 
 Download using:
 
-\```bash
+```bash
 gdown https://drive.google.com/uc?id=1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA -O yawn_dataset.zip
-\```
+```
 
 ---
 
 ### 4️⃣ Unzip the Datasets
 
-\```bash
+```bash
 unzip eye_dataset.zip
 unzip yawn_dataset.zip
-\```
+```
 
 ---
 
@@ -118,39 +114,39 @@ unzip yawn_dataset.zip
 
 Create folders:
 
-\```bash
+```bash
 mkdir -p data/eye/train/open data/eye/train/closed data/eye/test/open data/eye/test/closed
-\```
+```
 
 Move files:
 
-\```bash
+```bash
 mv eye_dataset/train/open/* data/eye/train/open/
 mv eye_dataset/train/closed/* data/eye/train/closed/
 mv eye_dataset/test/open/* data/eye/test/open/
 mv eye_dataset/test/closed/* data/eye/test/closed/
-\```
+```
 
 #### 😮 Yawn Dataset
 
 Create folders:
 
-\```bash
+```bash
 mkdir -p data/yawn/train/yawn data/yawn/train/no_yawn data/yawn/test/yawn data/yawn/test/no_yawn
-\```
+```
 
 Move files:
 
-\```bash
+```bash
 mv yawn_dataset/train/yawn/* data/yawn/train/yawn/
 mv yawn_dataset/train/no_yawn/* data/yawn/train/no_yawn/
 mv yawn_dataset/test/yawn/* data/yawn/test/yawn/
 mv yawn_dataset/test/no_yawn/* data/yawn/test/no_yawn/
-\```
+```
 
 ✅ Now your `data/` folder should look like:
 
-\```
+```bash
 data/
 ├── eye/
 │   ├── train/
@@ -166,7 +162,7 @@ data/
     └── test/
         ├── yawn/
         └── no_yawn/
-\```
+```
 
 ---
 
@@ -178,15 +174,15 @@ data/
 
 ### ✅ Train Eye Detection Model
 
-\```bash
+```bash
 python eye_detection.py --mode train --data_dir ./data/eye --save_model best_eye_model.pth
-\```
+```
 
 ### ✅ Test Eye Detection Model
 
-\```bash
+```bash
 python eye_detection.py --mode test --data_dir ./data/eye --load_model best_eye_model.pth
-\```
+```
 
 ---
 
@@ -196,15 +192,15 @@ python eye_detection.py --mode test --data_dir ./data/eye --load_model best_eye_
 
 ### ✅ Train Yawn Detection Model
 
-\```bash
+```bash
 python yawn_detection.py --mode train --data_dir ./data/yawn --save_model best_yawn_model.pth
-\```
+```
 
 ### ✅ Test Yawn Detection Model
 
-\```bash
+```bash
 python yawn_detection.py --mode test --data_dir ./data/yawn --load_model best_yawn_model.pth
-\```
+```
 
 ---
 
@@ -212,25 +208,25 @@ python yawn_detection.py --mode test --data_dir ./data/yawn --load_model best_ya
 
 ✅ **Training Logs Example:**
 
-\```bash
+```bash
 Epoch 1/10 - Train Loss: 0.42 - Train Acc: 83%
-\```
+```
 
 ✅ **Test Output Example:**
 
-\```bash
+```bash
 Test Accuracy: 82%
 Classification Report:
               precision    recall  f1-score   support
       open       0.84      0.87      0.85       100
     closed       0.80      0.75      0.77       100
-\```
+```
 
 ---
 
 # 🛠️ Notes & Troubleshooting
 
-- ✅ Make sure data is in the correct folder structure under `/data/eye/` and `/data/yawn/`
+- ✅ Ensure your data is in the correct folder structure under `/data/eye/` and `/data/yawn/`
 - ✅ Models will be saved as `best_eye_model.pth` and `best_yawn_model.pth`
 - ✅ The models **overwrite each time you train**
 - ✅ CUDA GPU is used automatically if available
@@ -256,4 +252,4 @@ Classification Report:
 
 Clone ➔ Download ➔ Unzip ➔ Move files ➔ Train ➔ Test ➔ DONE ✔️
 
-For issues, open a GitHub issue or contact the repo maintainer.
+For any issues, please open a GitHub issue or contact the repo maintainer.
