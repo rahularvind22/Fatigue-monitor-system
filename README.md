@@ -11,12 +11,12 @@ This section explains how to **clone the repository**, **download the dataset**,
 
  **Command to clone the repo:**
 
-```bash
-git clone repo from here - 
-https://github.com/AswinBalajiTR/Final-Project-Group1
+\```bash
+git clone https://github.com/AswinBalajiTR/Final-Project-Group1
+cd Final-Project-Group1
+\```
 
-## Then move into the repo folder:
-cd yawn-detection
+
 
 ## 2️⃣ Download the Dataset
  Dataset link:
