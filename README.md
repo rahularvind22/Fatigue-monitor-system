@@ -2,47 +2,18 @@
 
 # 💤 Driver Drowsiness Detection (Eye + Yawn Detection)
 
-This project detects **driver drowsiness** using two modules:
+This project implements driver drowsiness detection using **two modules:**
 
-- 👁️ **Eye Detection:** Classify eyes as open/closed  
-- 😮 **Yawn Detection:** Classify faces as yawn/no_yawn
+- 👁️ **Eye Detection**
+- 😮 **Yawn Detection**
 
-We use **custom CNN models** for both tasks with clean training & testing pipelines.
-
----
-
-## 📂 Project Structure
-
-```bash
-Final-Project-Group1/
-├── data/
-│   ├── eye/
-│   │   ├── train/
-│   │   │   ├── open/
-│   │   │   └── closed/
-│   │   └── test/
-│   │       ├── open/
-│   │       └── closed/
-│   └── yawn/
-│       ├── train/
-│       │   ├── yawn/
-│       │   └── no_yawn/
-│       └── test/
-│           ├── yawn/
-│           └── no_yawn/
-├── eye_detection.py
-├── yawn_detection.py
-├── best_eye_model.pth
-├── best_yawn_model.pth
-├── requirements.txt
-└── README.md
-```
+You can train and test **custom CNN models** and also use a **pretrained ResNet18 model** for eye detection.
 
 ---
 
-## 🚀 Setup Instructions
+## 📥 Clone the GitHub Repository
 
-### 1️⃣ Clone the GitHub Repository
+Run the following commands to clone the repository and move into the project folder:
 
 ```bash
 git clone https://github.com/AswinBalajiTR/Final-Project-Group1
@@ -51,205 +22,85 @@ cd Final-Project-Group1
 
 ---
 
-### 2️⃣ Install Python Dependencies
+## ⬇️ Download the Dataset
+
+Download the dataset zip file from the following link:
+
+https://drive.google.com/file/d/1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA/view
+
+---
+
+## 📦 Unzip the Dataset
+
+After downloading, unzip the data file using this command:
 
 ```bash
-pip install -r requirements.txt
-```
-
-Example `requirements.txt`:
-
-```text
-torch
-torchvision
-opencv-python
-numpy
-tqdm
-scikit-learn
+unzip data.zip
 ```
 
 ---
 
-### 3️⃣ Download the Datasets
+## 🚀 Run the Python Files
 
-#### 👁️ Eye Dataset
+We have **different files for Eye Detection and Yawn Detection.**
 
-**Google Drive Link:**
+---
 
-https://drive.google.com/file/d/1XXXXXXX_EYE_DATASET_ID/view?usp=drive_link
+### 👁️ Eye Detection
 
-Download using:
+#### ✅ Run the Custom CNN Model
 
 ```bash
-pip install gdown
-gdown https://drive.google.com/uc?id=1XXXXXXX_EYE_DATASET_ID -O eye_dataset.zip
+python3 eye_detection.py
 ```
 
-#### 😮 Yawn Dataset
-
-**Google Drive Link:**
-
-https://drive.google.com/file/d/1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA/view?usp=drive_link
-
-Download using:
+#### ✅ Run the Pretrained ResNet18 Model
 
 ```bash
-gdown https://drive.google.com/uc?id=1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA -O yawn_dataset.zip
+python3 eye_pretrained.py
 ```
 
 ---
 
-### 4️⃣ Unzip the Datasets
+### 😮 Yawn Detection
+
+#### ✅ Run the Main Yawn Detection Model
 
 ```bash
-unzip eye_dataset.zip
-unzip yawn_dataset.zip
+python3 yawn_detection_main.py
+```
+
+#### ✅ Run the Baseline Yawn Detection Model
+
+```bash
+python3 yawn_detection_baseline.py
 ```
 
 ---
 
-### 5️⃣ Set Up Data Folders
+## 🖼️ View the Model Metrics
 
-#### 👁️ Eye Dataset
+✅ After running any of the above files, you will be able to see **the performance metrics** of each model in your terminal (e.g., Accuracy, Precision, Recall, F1-Score).
 
-Create folders:
+---
 
-```bash
-mkdir -p data/eye/train/open data/eye/train/closed data/eye/test/open data/eye/test/closed
-```
+## 🎬 Demo the Project (Streamlit App)
 
-Move files:
+To run the **demo app** using Streamlit, use the following command:
 
 ```bash
-mv eye_dataset/train/open/* data/eye/train/open/
-mv eye_dataset/train/closed/* data/eye/train/closed/
-mv eye_dataset/test/open/* data/eye/test/open/
-mv eye_dataset/test/closed/* data/eye/test/closed/
-```
-
-#### 😮 Yawn Dataset
-
-Create folders:
-
-```bash
-mkdir -p data/yawn/train/yawn data/yawn/train/no_yawn data/yawn/test/yawn data/yawn/test/no_yawn
-```
-
-Move files:
-
-```bash
-mv yawn_dataset/train/yawn/* data/yawn/train/yawn/
-mv yawn_dataset/train/no_yawn/* data/yawn/train/no_yawn/
-mv yawn_dataset/test/yawn/* data/yawn/test/yawn/
-mv yawn_dataset/test/no_yawn/* data/yawn/test/no_yawn/
-```
-
-✅ Now your `data/` folder should look like:
-
-```bash
-data/
-├── eye/
-│   ├── train/
-│   │   ├── open/
-│   │   └── closed/
-│   └── test/
-│       ├── open/
-│       └── closed/
-└── yawn/
-    ├── train/
-    │   ├── yawn/
-    │   └── no_yawn/
-    └── test/
-        ├── yawn/
-        └── no_yawn/
+streamlit run Main.py
 ```
 
 ---
 
-# 💻 Running the Code
+# ✅ You’re All Set 🚀
 
-## 👁️ Eye Detection
+This completes the setup:
 
-**File:** `eye_detection.py`
+- ✅ Clone the repo  
+- ✅ Download & unzip the dataset  
+- ✅ Run the eye/yawn detection models  
+- ✅ Launch the Streamlit demo if needed
 
-### ✅ Train Eye Detection Model
-
-```bash
-python eye_detection.py --mode train --data_dir ./data/eye --save_model best_eye_model.pth
-```
-
-### ✅ Test Eye Detection Model
-
-```bash
-python eye_detection.py --mode test --data_dir ./data/eye --load_model best_eye_model.pth
-```
-
----
-
-## 😮 Yawn Detection
-
-**File:** `yawn_detection.py`
-
-### ✅ Train Yawn Detection Model
-
-```bash
-python yawn_detection.py --mode train --data_dir ./data/yawn --save_model best_yawn_model.pth
-```
-
-### ✅ Test Yawn Detection Model
-
-```bash
-python yawn_detection.py --mode test --data_dir ./data/yawn --load_model best_yawn_model.pth
-```
-
----
-
-# 🖼️ Expected Output
-
-✅ **Training Logs Example:**
-
-```bash
-Epoch 1/10 - Train Loss: 0.42 - Train Acc: 83%
-```
-
-✅ **Test Output Example:**
-
-```bash
-Test Accuracy: 82%
-Classification Report:
-              precision    recall  f1-score   support
-      open       0.84      0.87      0.85       100
-    closed       0.80      0.75      0.77       100
-```
-
----
-
-# 🛠️ Notes & Troubleshooting
-
-- ✅ Ensure your data is in the correct folder structure under `/data/eye/` and `/data/yawn/`
-- ✅ Models will be saved as `best_eye_model.pth` and `best_yawn_model.pth`
-- ✅ The models **overwrite each time you train**
-- ✅ CUDA GPU is used automatically if available
-- ✅ `opencv-python` is required for image loading
-
----
-
-# 📄 What Each File Does
-
-| File                  | Description                                                                 |
-|-----------------------|-----------------------------------------------------------------------------|
-| `eye_detection.py`    | CNN model for eye state detection (train & test modes)                      |
-| `yawn_detection.py`   | CNN model for yawn detection (train & test modes)                            |
-| `requirements.txt`    | Lists all Python dependencies                                               |
-| `README.md`           | This full guide                                                             |
-| `data/`               | Holds both eye & yawn datasets (train & test splits)                         |
-| `best_eye_model.pth`  | Trained model file for eye detection                                        |
-| `best_yawn_model.pth` | Trained model file for yawn detection                                       |
-
----
-
-# ✅ You're All Set 🚀
-
-Clone ➔ Download ➔ Unzip ➔ Move files ➔ Train ➔ Test ➔ DONE ✔️
-
-For any issues, please open a GitHub issue or contact the repo maintainer.
+For any questions, open a GitHub issue or contact the repo maintainer.
