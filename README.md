@@ -1,29 +1,55 @@
 # Deep-Learning-Project
-# 🚗 Yawn Detection using CNN
 
-This project implements a **Convolutional Neural Network (CNN)** to detect **yawning** vs **non-yawning** faces, aimed at driver drowsiness detection.
 
-The pipeline includes:
+#  How to Set Up and Run This Project
 
-- ✅ Custom CNN architecture (simple & deeper versions)
-- ✅ Binary classification (yawn vs no-yawn)
-- ✅ Clean training + testing scripts in one main file
-- ✅ Reproducible with minimal setup
+This section explains how to **clone the repository**, **download the dataset**, **unzip it**, and **set up everything correctly** to train and test the model.
 
 ---
 
-## 📂 Folder Structure
+## 1️ Clone the GitHub Repository
+
+👉 **Command to clone the repo:**
 
 ```bash
-project-root/
-├── data/
+git clone https://github.com/your-username/yawn-detection.git
+
+## Then move into the repo folder:
+cd yawn-detection
+
+## 2️⃣ Download the Dataset
+ Dataset link:
+https://drive.google.com/file/d/1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA/view?usp=drive_link
+
+ First install gdown (to download from Google Drive):
+pip install gdown
+Then download the dataset zip file:
+gdown https://drive.google.com/uc?id=1PSWj2w2LP6Zza125W4ZmCL7t8ozEnPlA -O yawn_dataset.zip
+
+Unzip the Dataset:
+unzip yawn_dataset.zip
+
+
+data/
+├── eye/
 │   ├── train/
-│   │   ├── yawn/
-│   │   └── no_yawn/
+│   │   ├── open/
+│   │   └── closed/
 │   └── test/
-│       ├── yawn/
-│       └── no_yawn/
-├── best_yawn_model.pth
-├── yawn_detection.py
-├── requirements.txt
-└── README.md
+│       ├── open/
+│       └── closed/
+└── yawn/
+    ├── train/
+    │   ├── yawn/
+    │   └── no_yawn/
+    └── test/
+        ├── yawn/
+        └── no_yawn/
+
+
+
+
+
+
+
+
