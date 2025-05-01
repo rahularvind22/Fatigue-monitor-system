@@ -9,10 +9,11 @@ This section explains how to **clone the repository**, **download the dataset**,
 
 ## 1️ Clone the GitHub Repository
 
-👉 **Command to clone the repo:**
+ **Command to clone the repo:**
 
 ```bash
-git clone https://github.com/your-username/yawn-detection.git
+git clone repo from here - 
+https://github.com/AswinBalajiTR/Final-Project-Group1
 
 ## Then move into the repo folder:
 cd yawn-detection
