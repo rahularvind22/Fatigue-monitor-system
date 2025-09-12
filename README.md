@@ -2,6 +2,35 @@
 
 # 💤 Driver Drowsiness Detection (Eye + Yawn Detection)
 
+
+This repository is a **fork** of the original Driver Drowsiness Detection project.  
+While the main project covered both **eye state detection** and **yawn detection**,  
+my focus and contribution was entirely on building a **robust Yawn Detection module** using Deep Learning.  
+
+---
+
+## 📌 My Contribution  
+
+### 🔹 Problem  
+Yawning is an early and critical indicator of driver drowsiness. Detecting it in real-time is challenging due to variations in lighting, head pose, and subtle facial movements.  
+
+### 🔹 Action  
+- Developed a **custom CNN** in PyTorch for binary classification (*yawn vs. non-yawn*).  
+- Fine-tuned a **ResNet18** pretrained on ImageNet, improving robustness and performance.  
+- Applied **data augmentation** (flips, rotations, color jitter) for generalization under diverse conditions.  
+- Integrated **Grad-CAM explainability** to visualize attention maps, confirming focus on the **mouth region**.  
+
+### 🔹 Results  
+- **Custom CNN:** 88% accuracy (Macro F1: 0.87)  
+- **ResNet18:** 100% precision, recall, and F1-score  
+- Successfully integrated into the **real-time Driver Drowsiness Detection system** with live alerts for yawns.  
+
+### 🔹 Future Improvements  
+- Expand dataset with more diverse yawning samples.  
+- Deploy as a **real-time pipeline** using Streamlit + OpenCV.  
+- Explore **temporal modeling (CNN + LSTM)** to capture yawning sequences instead of static frames.  
+
+
 This project implements driver drowsiness detection using **two modules:**
 
 - 👁️ **Eye Detection**
